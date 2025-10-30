@@ -66,8 +66,11 @@ jobs:
           while ( ((Get-Date) - $startTime).TotalSeconds -lt $timeout ) {
               if (Test-Path "ngrok.log") {
                   $content = Get-Content "ngrok.log"
-                  if ($content -match "url=(tcp://.+)") {
-                      $ngrok_url = $Matches[1]
+                  # Use Select-String for robust log parsing
+                  $match = $content | Select-String -Pattern "url=(tcp://.+)"
+                  
+                  if ($match) {
+                      $ngrok_url = $match.Matches[0].Groups[1].Value
                       Write-Host "NGROK URL: $ngrok_url"
                       echo "NGROK_URL=$ngrok_url" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
                       $url_found = $true
@@ -78,7 +81,8 @@ jobs:
           }
 
           if (-not $url_found) {
-              Write-Error "Failed to get ngrok URL after $timeout seconds. Check ngrok logs."
+              Write-Error "Failed to get ngrok URL after $timeout seconds. Printing ngrok.log:"
+              # Print the log file so we can see the real error
               Get-Content "ngrok.log"
               exit 1
           }
