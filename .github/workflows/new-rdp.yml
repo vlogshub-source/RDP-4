@@ -63,7 +63,7 @@ jobs:
           $startTime = Get-Date
           $url_found = $false
           
-          while ((Get-Date - $startTime).TotalSeconds -lt $timeout) {
+          while ( ((Get-Date) - $startTime).TotalSeconds -lt $timeout ) {
               if (Test-Path "ngrok.log") {
                   $content = Get-Content "ngrok.log"
                   if ($content -match "url=(tcp://.+)") {
@@ -78,7 +78,8 @@ jobs:
           }
 
           if (-not $url_found) {
-              Write-Error "Failed to get ngrok URL after $timeout seconds. Check your NGROK_AUTH_TOKEN."
+              Write-Error "Failed to get ngrok URL after $timeout seconds. Check ngrok logs."
+              Get-Content "ngrok.log"
               exit 1
           }
 
