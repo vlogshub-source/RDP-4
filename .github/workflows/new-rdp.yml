@@ -1,0 +1,54 @@
+name: Windows RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Set up RDP User
+        run: |
+          $Password = (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes(12)
+          $Password = [System.Convert]::ToBase64String($Password)
+          $Password = $Password.Substring(0, 16)
+          Set-LocalUser -Name "Administrator" -Password ($Password | ConvertTo-SecureString -AsPlainText -Force)
+          echo "RDP_PASSWORD=$Password" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "RDP User: Administrator"
+          Write-Host "RDP Password: $Password"
+
+      - name: Enable RDP
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+      - name: Download ngrok
+        run: |
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+          
+      - name: Run ngrok Tunnel
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          .\ngrok.exe config add-authtoken $env:NGROK_AUTH_TOKEN
+          .\ngrok.exe tcp 3389 --log=stdout > ngrok.log &
+          Start-Sleep -Seconds 10
+          (Get-Content -Path "ngrok.log" -Wait | Select-Object -First 10) -match "url=(tcp://.+)" | Out-Null
+          Write-Host "NGROK URL: $($Matches[1])"
+          echo "NGROK_URL=$($Matches[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Print Credentials
+        run: |
+          Write-Host "Your RDP machine is ready!"
+          Write-Host "--------------------------------"
+          Write-Host "Host/IP: ${{ env.NGROK_URL }}"
+          Write-Host "Username: Administrator"
+          Write-Host "Password: ${{ env.RDP_PASSWORD }}"
+          Write-Host "--------------------------------"
+          Write-Host "This will run for up to 6 hours. Remember, this violates GitHub's ToS."
+
+      - name: Keep Alive (Loop)
+        run: |
+          Start-Sleep -Seconds 21000
