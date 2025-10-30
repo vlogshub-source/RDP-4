@@ -41,10 +41,13 @@ jobs:
           Write-Host "RDP User: github"
           Write-Host "RDP Password: $Password"
 
-      - name: Enable RDP
+      - name: Enable RDP and Wait
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Write-Host "RDP Enabled. Waiting 10 seconds for service to start."
+          Start-Sleep -Seconds 10
+          Write-Host "Wait complete. Starting ngrok."
 
       - name: Download ngrok
         run: |
