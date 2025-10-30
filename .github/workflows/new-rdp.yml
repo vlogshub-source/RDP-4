@@ -10,12 +10,29 @@ jobs:
     steps:
       - name: Create RDP User
         run: |
-          $bytes = New-Object Byte[] 12
-          $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
-          $rng.GetBytes($bytes)
-          $Password = [System.Convert]::ToBase64String($bytes)
-          $Password = $Password.Substring(0, 16)
+          # Generate a 20-character random password guaranteed to meet complexity
+          $char_sets = @(
+              ([char[]]('a'..'z')),
+              ([char[]]('A'..'Z')),
+              ([char[]]('0'..'9')),
+              ([char[]]('!', '#', '$', '%', '&', '*', '+', '-', '.', '?', '@', '_'))
+          )
           
+          $PasswordChars = @()
+          # Add one character from each set to guarantee complexity
+          $PasswordChars += $char_sets[0] | Get-Random
+          $PasswordChars += $char_sets[1] | Get-Random
+          $PasswordChars += $char_sets[2] | Get-Random
+          $PasswordChars += $char_sets[3] | Get-Random
+          
+          # Add 16 more random characters
+          $all_chars = $char_sets -join ''
+          1..16 | ForEach-Object { $PasswordChars += Get-Random -InputObject ([char[]]$all_chars) }
+          
+          # Shuffle the characters and join
+          $Password = ($PasswordChars | Get-Random -Count $PasswordChars.Length) -join ''
+          
+          # Create the user
           New-LocalUser -Name "github" -Password ($Password | ConvertTo-SecureString -AsPlainText -Force) -FullName "GitHub RDP User"
           Add-LocalGroupMember -Group "Administrators" -Member "github"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "github"
