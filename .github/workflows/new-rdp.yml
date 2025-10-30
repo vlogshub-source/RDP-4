@@ -10,8 +10,10 @@ jobs:
     steps:
       - name: Set up RDP User
         run: |
-          $Password = (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes(12)
-          $Password = [System.Convert]::ToBase64String($Password)
+          $bytes = New-Object Byte[] 12
+          $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+          $rng.GetBytes($bytes)
+          $Password = [System.Convert]::ToBase64String($bytes)
           $Password = $Password.Substring(0, 16)
           Set-LocalUser -Name "Administrator" -Password ($Password | ConvertTo-SecureString -AsPlainText -Force)
           echo "RDP_PASSWORD=$Password" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
